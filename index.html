@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice Generator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <h1><span class="header-icon">&#128196;</span> Invoice Generator</h1>
+      <p class="header-subtitle">Create, preview, and export professional invoices</p>
+    </header>
+
+    <main class="main-grid">
+      <!-- ===== FORM PANEL ===== -->
+      <section class="panel form-panel">
+        <!-- Company Details -->
+        <div class="section">
+          <h2 class="section-title">Company Details</h2>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="companyName">Company Name <span class="required">*</span></label>
+              <input type="text" id="companyName" placeholder="Acme Corp" required>
+              <span class="error" id="companyNameError"></span>
+            </div>
+            <div class="form-group">
+              <label for="companyEmail">Company Email <span class="required">*</span></label>
+              <input type="email" id="companyEmail" placeholder="info@acme.com" required>
+              <span class="error" id="companyEmailError"></span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="companyAddress">Company Address <span class="required">*</span></label>
+            <input type="text" id="companyAddress" placeholder="123 Business St, City, State" required>
+            <span class="error" id="companyAddressError"></span>
+          </div>
+          <div class="form-group">
+            <label for="companyPhone">Company Phone <span class="required">*</span></label>
+            <input type="tel" id="companyPhone" placeholder="+1 (555) 123-4567" required>
+            <span class="error" id="companyPhoneError"></span>
+          </div>
+        </div>
+
+        <!-- Invoice Details -->
+        <div class="section">
+          <h2 class="section-title">Invoice Details</h2>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="invoiceNumber">Invoice Number</label>
+              <input type="text" id="invoiceNumber" readonly>
+            </div>
+            <div class="form-group">
+              <label for="invoiceDate">Invoice Date</label>
+              <input type="date" id="invoiceDate" readonly>
+            </div>
+          </div>
+        </div>
+
+        <!-- Customer Details -->
+        <div class="section">
+          <h2 class="section-title">Customer Details</h2>
+          <div class="form-group">
+            <label for="customerName">Customer Name <span class="required">*</span></label>
+            <input type="text" id="customerName" placeholder="Jane Doe" required>
+            <span class="error" id="customerNameError"></span>
+          </div>
+          <div class="form-group">
+              <label for="customerAddress">Customer Address</label>
+              <input type="text" id="customerAddress" placeholder="456 Client Ave, Town, State">
+            <span class="error" id="customerAddressError"></span>
+          </div>
+          <div class="form-group">
+            <label for="receiverName">Receiver's Name</label>
+            <input type="text" id="receiverName" placeholder="Who received this invoice">
+          </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="section">
+          <div class="section-header">
+            <h2 class="section-title">Items</h2>
+            <button class="btn btn-sm btn-primary" id="addItemBtn">+ Add Item</button>
+          </div>
+          <div class="table-wrapper">
+            <table class="items-form-table" id="itemsTable">
+              <thead>
+                <tr>
+                  <th class="col-toggle"></th>
+                  <th class="col-desc">Description</th>
+                  <th class="col-qty">Qty</th>
+                  <th class="col-price">Price</th>
+                  <th class="col-total">Total</th>
+                  <th class="col-action"></th>
+                </tr>
+              </thead>
+              <tbody id="itemsBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tax & Summary -->
+        <div class="section">
+          <h2 class="section-title">Tax &amp; Summary</h2>
+          <div class="form-row form-row-narrow">
+            <div class="form-group">
+              <label for="taxRate">Tax Rate (%)</label>
+              <input type="number" id="taxRate" min="0" max="100" step="0.01" value="0">
+            </div>
+            <div class="summary-display">
+              <div class="summary-row"><span>Subtotal:</span><span id="displaySubtotal">$0.00</span></div>
+              <div class="summary-row"><span>Tax:</span><span id="displayTax">$0.00</span></div>
+              <div class="summary-row summary-total"><span>Total:</span><span id="displayTotal">$0.00</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions">
+          <button class="btn btn-outline" id="saveBtn">Save</button>
+          <button class="btn btn-outline" id="loadBtn">Load</button>
+          <button class="btn btn-outline btn-danger" id="clearBtn">Clear</button>
+          <button class="btn btn-outline" id="printBtn">Print</button>
+          <button class="btn btn-primary" id="exportBtn">Export PDF</button>
+        </div>
+      </section>
+
+      <!-- ===== PREVIEW PANEL ===== -->
+      <section class="panel preview-panel">
+        <h2 class="section-title">Invoice Preview</h2>
+        <div id="invoicePreview">
+          <div class="preview-placeholder">
+            <p>Fill in the form to see a live preview of your invoice.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
