@@ -48,6 +48,7 @@ function freshInvoice() {
     receiverName: '',
     items: [{ id: generateId(), description: '', quantity: 1, unitPrice: 0, fixedPrice: false, fixedAmount: 0 }],
     taxRate: 0,
+    downPayment: 0,
   };
 }
 
@@ -68,6 +69,7 @@ function cacheDom() {
   el.customerAddress = $('#customerAddress');
   el.receiverName = $('#receiverName');
   el.taxRate = $('#taxRate');
+  el.downPayment = $('#downPayment');
   el.itemsBody = $('#itemsBody');
   el.addItemBtn = $('#addItemBtn');
   el.saveBtn = $('#saveBtn');
@@ -79,12 +81,13 @@ function cacheDom() {
   el.toast = $('#toast');
   el.displaySubtotal = $('#displaySubtotal');
   el.displayTax = $('#displayTax');
+  el.displayDownPayment = $('#displayDownPayment');
   el.displayTotal = $('#displayTotal');
 
   el.formFields = [
     el.companyName, el.companyAddress, el.companyPhone, el.companyEmail,
     el.invoiceNumber, el.invoiceDate,
-    el.customerName, el.customerAddress, el.receiverName, el.taxRate,
+    el.customerName, el.customerAddress, el.receiverName, el.taxRate, el.downPayment,
   ];
 
   el.errorFields = {
@@ -149,6 +152,7 @@ function readForm() {
   data.customerAddress = el.customerAddress.value;
   data.receiverName = el.receiverName.value;
   data.taxRate = parseFloat(el.taxRate.value) || 0;
+  data.downPayment = parseFloat(el.downPayment.value) || 0;
 }
 
 // ─── Write data → form ─────────────────────────────────────
@@ -164,6 +168,7 @@ function writeForm() {
   el.customerAddress.value = data.customerAddress;
   el.receiverName.value = data.receiverName;
   el.taxRate.value = data.taxRate;
+  el.downPayment.value = fmt(data.downPayment || 0);
 }
 
 // ─── Items table (form) ────────────────────────────────────
@@ -241,7 +246,27 @@ function onItemInput(e) {
 function onItemKeydown(e) {
   const isPrice = e.target.classList.contains('item-price');
   const isFixed = e.target.classList.contains('item-fixed-amount');
-  if (!isPrice && !isFixed) return;
+  const isDownPayment = e.target.id === 'downPayment';
+  if (!isPrice && !isFixed && !isDownPayment) return;
+
+  if (isDownPayment) {
+    if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault();
+      const cents = Math.round((data.downPayment || 0) * 100);
+      const newCents = cents * 10 + parseInt(e.key);
+      data.downPayment = newCents / 100;
+      e.target.value = fmt(data.downPayment);
+      calcAll();
+    } else if (e.key === 'Backspace') {
+      e.preventDefault();
+      const cents = Math.round((data.downPayment || 0) * 100);
+      const newCents = Math.floor(cents / 10);
+      data.downPayment = newCents / 100;
+      e.target.value = fmt(data.downPayment);
+      calcAll();
+    }
+    return;
+  }
 
   const tr = e.target.closest('tr');
   if (!tr) return;
@@ -275,6 +300,14 @@ function onItemBlur(e) {
   if (!tr) return;
   const id = tr.dataset.id;
   const item = data.items.find(it => it.id === id);
+
+  if (e.target.id === 'downPayment') {
+    data.downPayment = Math.max(0, parseFloat(e.target.value) || 0);
+    e.target.value = fmt(data.downPayment);
+    calcAll();
+    return;
+  }
+
   if (!item) return;
 
   if (e.target.classList.contains('item-qty')) {
@@ -317,15 +350,18 @@ function calcAll() {
   readForm();
   const subtotal = data.items.reduce((sum, it) => sum + getItemTotal(it), 0);
   const taxAmount = subtotal * (data.taxRate / 100);
-  const grandTotal = subtotal + taxAmount;
+  const downPayment = data.downPayment || 0;
+  const grandTotal = subtotal + taxAmount - downPayment;
 
   el.displaySubtotal.textContent = 'GH₵' + fmt(subtotal);
   el.displayTax.textContent = 'GH₵' + fmt(taxAmount);
-  el.displayTotal.textContent = 'GH₵' + fmt(grandTotal);
+  el.displayDownPayment.textContent = 'GH₵' + fmt(downPayment);
+  el.displayTotal.textContent = 'GH₵' + fmt(Math.max(0, grandTotal));
 
   data.subtotal = subtotal;
   data.taxAmount = taxAmount;
-  data.grandTotal = grandTotal;
+  data.downPayment = downPayment;
+  data.grandTotal = Math.max(0, grandTotal);
 
   renderPreview();
 }
@@ -378,6 +414,9 @@ function renderPreview() {
     emptyHtml = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:1rem;">No items added yet.</td></tr>`;
   }
 
+  const downPayment = data.downPayment || 0;
+  const totalAfterDownPayment = Math.max(0, total - downPayment);
+
   el.preview.innerHTML = `
     <div class="invoice-doc">
       <div class="invoice-header">
@@ -419,7 +458,8 @@ function renderPreview() {
       <div class="invoice-summary">
         <div class="sum-row"><span>Subtotal</span><span>GH₵${fmt(subtotal)}</span></div>
         <div class="sum-row"><span>Tax (${fmt(data.taxRate)}%)</span><span>GH₵${fmt(taxAmt)}</span></div>
-        <div class="sum-row sum-grand"><span>Grand Total</span><span>GH₵${fmt(total)}</span></div>
+        ${downPayment > 0 ? `<div class="sum-row"><span>Down Payment</span><span>GH₵-${fmt(downPayment)}</span></div>` : ''}
+        <div class="sum-row sum-grand"><span>Grand Total</span><span>GH₵${fmt(totalAfterDownPayment)}</span></div>
       </div>
 
       <div class="invoice-receiver">
@@ -625,7 +665,8 @@ function exportPDF() {
   // ── Summary ──
   const subtotal = data.items.reduce((s, it) => s + getItemTotal(it), 0);
   const taxAmt = subtotal * (data.taxRate / 100);
-  const grandTotal = subtotal + taxAmt;
+  const downPayment = data.downPayment || 0;
+  const grandTotal = subtotal + taxAmt - downPayment;
 
   const summaryX = pageWidth - margin - 60;
   const summaryW = 60;
@@ -642,6 +683,12 @@ function exportPDF() {
   doc.text('GHS ' + fmt(taxAmt), pageWidth - margin, y, { align: 'right' });
   y += 5;
 
+  if (downPayment > 0) {
+    doc.text('Down Payment:', summaryX, y);
+    doc.text('GHS -' + fmt(downPayment), pageWidth - margin, y, { align: 'right' });
+    y += 5;
+  }
+
   doc.setDrawColor(...darkClr);
   doc.setLineWidth(0.5);
   doc.line(summaryX, y, pageWidth - margin, y);
@@ -651,7 +698,7 @@ function exportPDF() {
   doc.setFont(undefined, 'bold');
   doc.setTextColor(...darkClr);
   doc.text('Grand Total:', summaryX, y);
-  doc.text('GHS ' + fmt(grandTotal), pageWidth - margin, y, { align: 'right' });
+  doc.text('GHS ' + fmt(Math.max(0, grandTotal)), pageWidth - margin, y, { align: 'right' });
   y += 10;
 
   // ── Receiver ──
@@ -704,6 +751,7 @@ function init() {
       const parsed = JSON.parse(saved);
       parsed.items = parsed.items.map(it => ({ ...it, id: it.id || generateId(), fixedPrice: it.fixedPrice || false, fixedAmount: it.fixedAmount || 0 }));
       if (!parsed.receiverName) parsed.receiverName = '';
+      if (parsed.downPayment === undefined) parsed.downPayment = 0;
       data = parsed;
     } catch { /* use defaults */ }
   }
@@ -712,6 +760,10 @@ function init() {
   renderItems();
   attachItemEvents();
   calcAll();
+
+  // ── Down payment custom input handling ──
+  el.downPayment.addEventListener('keydown', onItemKeydown);
+  el.downPayment.addEventListener('focusout', onItemBlur);
 
   // ── Form input binding ──
   el.formFields.forEach(field => {

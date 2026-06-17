@@ -108,9 +108,14 @@
               <label for="taxRate">Tax Rate (%)</label>
               <input type="number" id="taxRate" min="0" max="100" step="0.01" value="0">
             </div>
+            <div class="form-group">
+              <label for="downPayment">Down Payment</label>
+              <input type="number" id="downPayment" min="0" step="0.01" value="0" placeholder="0.00">
+            </div>
             <div class="summary-display">
               <div class="summary-row"><span>Subtotal:</span><span id="displaySubtotal">$0.00</span></div>
               <div class="summary-row"><span>Tax:</span><span id="displayTax">$0.00</span></div>
+              <div class="summary-row"><span>Down Payment:</span><span id="displayDownPayment">$0.00</span></div>
               <div class="summary-row summary-total"><span>Total:</span><span id="displayTotal">$0.00</span></div>
             </div>
           </div>
