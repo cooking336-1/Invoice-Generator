@@ -1485,12 +1485,111 @@ button, input, select, textarea, a {
   background: rgba(19, 27, 46, 0.94);
 }
 
+/* Preview document in dark mode */
 [data-theme="dark"] .invoice-doc {
+  background: #111827 !important;
+  color: #f1f5f9 !important;
+  border-color: #2e3b52 !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
 }
 
+[data-theme="dark"] .invoice-header {
+  background: #1a2336 !important;
+  border-bottom-color: #2e3b52 !important;
+}
+
+[data-theme="dark"] .invoice-company h3 {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .invoice-company p,
+[data-theme="dark"] .invoice-meta .inv-date-line,
+[data-theme="dark"] .invoice-bill-to .bill-addr {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .invoice-meta strong,
+[data-theme="dark"] .invoice-bill-to .bill-name,
+[data-theme="dark"] .invoice-items td,
+[data-theme="dark"] .invoice-summary .sum-row span:last-child,
+[data-theme="dark"] .receiver-name {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .invoice-items th,
+[data-theme="dark"] .invoice-summary .sum-row,
+[data-theme="dark"] .receiver-label {
+  color: #94a3b8 !important;
+  border-bottom-color: #2e3b52 !important;
+}
+
+[data-theme="dark"] .invoice-items td {
+  border-bottom-color: #1e293b !important;
+}
+
+[data-theme="dark"] .invoice-summary {
+  border-top-color: #2e3b52 !important;
+}
+
+[data-theme="dark"] .invoice-summary .sum-grand {
+  border-top-color: #3b82f6 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .invoice-summary .sum-grand span:last-child {
+  color: #60a5fa !important;
+}
+
+[data-theme="dark"] .invoice-footer {
+  background: #1a2336 !important;
+  border-top-color: #2e3b52 !important;
+  color: #94a3b8 !important;
+}
+
+/* Items section & Item Description in dark mode */
+[data-theme="dark"] .table-wrapper {
+  background: #131b2e !important;
+  border-color: #25334e !important;
+}
+
+[data-theme="dark"] .items-form-table {
+  background: transparent !important;
+}
+
+[data-theme="dark"] .items-form-table tr {
+  background: #131b2e !important;
+  border-color: #25334e !important;
+}
+
 [data-theme="dark"] .items-form-table tbody tr:hover {
-  background-color: #17223b;
+  background-color: #17223b !important;
+}
+
+[data-theme="dark"] .items-form-table input,
+[data-theme="dark"] .item-desc,
+[data-theme="dark"] .item-qty,
+[data-theme="dark"] .item-price,
+[data-theme="dark"] .item-fixed-amount {
+  background-color: #0b1120 !important;
+  color: #f1f5f9 !important;
+  border-color: #25334e !important;
+}
+
+[data-theme="dark"] .items-form-table input:focus,
+[data-theme="dark"] .item-desc:focus {
+  background-color: #0b1120 !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35) !important;
+}
+
+[data-theme="dark"] .items-form-table th {
+  background-color: #1c263d !important;
+  color: #94a3b8 !important;
+  border-bottom-color: #25334e !important;
+}
+
+[data-theme="dark"] .items-form-table td {
+  border-bottom-color: #1a253a !important;
 }
 
 [data-theme="dark"] .btn-toggle-type:hover,
