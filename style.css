@@ -46,6 +46,44 @@
   --tap-min: 44px;
 }
 
+/* ===== Dark Theme Variables ===== */
+[data-theme="dark"] {
+  --primary: #3b82f6;
+  --primary-hover: #60a5fa;
+  --primary-active: #2563eb;
+  --primary-light: rgba(59, 130, 246, 0.16);
+  --primary-border: #2563eb;
+  --primary-ring: rgba(59, 130, 246, 0.35);
+
+  --danger: #f87171;
+  --danger-hover: #ef4444;
+  --danger-light: rgba(239, 68, 68, 0.15);
+  --danger-border: #991b1b;
+  --danger-ring: rgba(239, 68, 68, 0.35);
+
+  --success: #34d399;
+  --success-light: rgba(16, 185, 129, 0.15);
+
+  --text: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  --bg: #090d16;
+  --bg-card: #131b2e;
+  --bg-subtle: #1c263d;
+  --bg-input: #0b1120;
+
+  --border: #25334e;
+  --border-subtle: #1a253a;
+  --border-focus: #3b82f6;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 8px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  --shadow-floating: 0 12px 32px rgba(0, 0, 0, 0.7);
+}
+
 /* ===== Reset & Base ===== */
 *, *::before, *::after {
   margin: 0;
@@ -67,6 +105,7 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 /* Prevent unwanted mobile 300ms delay & high-contrast tap */
@@ -84,14 +123,20 @@ button, input, select, textarea, a {
 
 /* ===== Header ===== */
 .app-header {
-  text-align: center;
   padding: 1rem 0 1.5rem;
 }
 
-.header-content {
-  display: inline-flex;
-  flex-direction: column;
+.header-inner {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 1rem;
+}
+
+.header-content {
+  display: flex;
+  flex-direction: column;
 }
 
 .app-header h1 {
@@ -114,6 +159,61 @@ button, input, select, textarea, a {
   font-size: 0.95rem;
   margin-top: 0.35rem;
   font-weight: 400;
+}
+
+/* Theme Toggle Button */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.85rem;
+  min-height: 38px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+  color: var(--text);
+  border-color: var(--primary-border);
+  background: var(--bg-subtle);
+  transform: translateY(-1px);
+}
+
+.theme-toggle:active {
+  transform: translateY(0);
+}
+
+.theme-icon {
+  flex-shrink: 0;
+  transition: transform 0.3s ease;
+}
+
+/* Light mode icon display */
+:root:not([data-theme="dark"]) .sun-icon {
+  display: none;
+}
+:root:not([data-theme="dark"]) .moon-icon {
+  display: inline-block;
+  color: #64748b;
+}
+
+/* Dark mode icon display */
+[data-theme="dark"] .moon-icon {
+  display: none;
+}
+[data-theme="dark"] .sun-icon {
+  display: inline-block;
+  color: #fbbf24;
 }
 
 /* ===== Responsive View Switcher Tabs ===== */
@@ -299,12 +399,12 @@ button, input, select, textarea, a {
 .form-group input:focus {
   border-color: var(--border-focus);
   box-shadow: 0 0 0 3px var(--primary-ring);
-  background: #ffffff;
+  background: var(--bg-input);
 }
 
 .form-group input.input-error {
   border-color: var(--danger);
-  background: #fffafa;
+  background: var(--danger-light);
 }
 
 .form-group input.input-error:focus {
@@ -418,7 +518,7 @@ button, input, select, textarea, a {
 }
 
 .items-form-table tbody tr:hover {
-  background-color: #fafbfc;
+  background-color: var(--bg-subtle);
 }
 
 .col-toggle { width: 50px; text-align: center; }
@@ -451,7 +551,7 @@ button, input, select, textarea, a {
   font-size: 0.875rem;
   font-family: var(--font);
   color: var(--text);
-  background: #ffffff;
+  background: var(--bg-input);
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
   outline: none;
@@ -653,7 +753,7 @@ button, input, select, textarea, a {
 }
 
 .btn-outline {
-  background: #ffffff;
+  background: var(--bg-card);
   color: var(--text-secondary);
   border-color: var(--border);
 }
@@ -706,11 +806,12 @@ button, input, select, textarea, a {
 }
 
 .invoice-doc {
-  background: #ffffff;
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .invoice-header {
@@ -1031,6 +1132,8 @@ button, input, select, textarea, a {
   }
 
   .invoice-doc {
+    background: #ffffff !important;
+    color: #0f172a !important;
     border: none !important;
     border-radius: 0 !important;
   }
@@ -1174,7 +1277,7 @@ button, input, select, textarea, a {
       "qty price"
       "total total";
     gap: 0.65rem;
-    background: #ffffff;
+    background: var(--bg-card);
     border: 1.5px solid var(--border);
     border-radius: var(--radius);
     padding: 0.9rem;
@@ -1374,5 +1477,38 @@ button, input, select, textarea, a {
 
   .secondary-actions {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Dark Mode Specific Overrides ─── */
+[data-theme="dark"] .mobile-bottom-bar {
+  background: rgba(19, 27, 46, 0.94);
+}
+
+[data-theme="dark"] .invoice-doc {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="dark"] .items-form-table tbody tr:hover {
+  background-color: #17223b;
+}
+
+[data-theme="dark"] .btn-toggle-type:hover,
+[data-theme="dark"] .btn-toggle-type.is-fixed {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border-color: #3b82f6;
+}
+
+[data-theme="dark"] .items-form-table td .line-total {
+  color: #f1f5f9;
+}
+
+@media (max-width: 600px) {
+  .header-inner {
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+    gap: 0.75rem;
   }
 }
