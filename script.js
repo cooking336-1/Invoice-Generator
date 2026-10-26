@@ -863,10 +863,54 @@ function showToast(msg, isError = false) {
   }, 3000);
 }
 
+// ─── Theme Management (Dark / Light Mode) ──────────────────
+
+function initTheme() {
+  const toggleBtn = $('#themeToggle');
+  const root = document.documentElement;
+
+  function setTheme(theme) {
+    root.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('invoice_theme', theme);
+    } catch(e) {}
+    if (toggleBtn) {
+      const isDark = theme === 'dark';
+      toggleBtn.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+      toggleBtn.setAttribute('title', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+      const label = toggleBtn.querySelector('.theme-toggle-label');
+      if (label) label.textContent = isDark ? 'Light' : 'Dark';
+    }
+  }
+
+  const currentTheme = root.getAttribute('data-theme') || (function() {
+    try { return localStorage.getItem('invoice_theme'); } catch(e) { return null; }
+  })() || 'light';
+  setTheme(currentTheme);
+
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      const active = root.getAttribute('data-theme');
+      setTheme(active === 'dark' ? 'light' : 'dark');
+    });
+  }
+
+  try {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+      let saved = null;
+      try { saved = localStorage.getItem('invoice_theme'); } catch(err) {}
+      if (!saved) {
+        setTheme(e.matches ? 'dark' : 'light');
+      }
+    });
+  } catch(e) {}
+}
+
 // ─── Init ──────────────────────────────────────────────────
 
 function init() {
   cacheDom();
+  initTheme();
 
   const saved = localStorage.getItem('invoiceData');
   if (saved) {
