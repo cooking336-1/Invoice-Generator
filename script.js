@@ -53,6 +53,7 @@ function freshInvoice() {
 }
 
 let data = freshInvoice();
+let currentTab = 'edit';
 
 // ─── DOM Cache ──────────────────────────────────────────────
 
@@ -84,6 +85,18 @@ function cacheDom() {
   el.displayDownPayment = $('#displayDownPayment');
   el.displayTotal = $('#displayTotal');
 
+  // Navigation & responsive elements
+  el.formPanel = $('.form-panel');
+  el.previewPanel = $('.preview-panel');
+  el.tabEdit = $('#tabEdit');
+  el.tabPreview = $('#tabPreview');
+  el.tabTotalBadge = $('#tabTotalBadge');
+  el.mobileBottomBar = $('#mobileBottomBar');
+  el.mobileBarTotal = $('#mobileBarTotal');
+  el.mobileBarToggleBtn = $('#mobileBarToggleBtn');
+  el.previewBackBtn = $('#previewBackBtn');
+  el.previewExportBtn = $('#previewExportBtn');
+
   el.formFields = [
     el.companyName, el.companyAddress, el.companyPhone, el.companyEmail,
     el.invoiceNumber, el.invoiceDate,
@@ -100,6 +113,52 @@ function cacheDom() {
   };
 }
 
+// ─── Responsive Tab Switching ───────────────────────────────
+
+function switchTab(tab) {
+  currentTab = tab;
+  if (!el.formPanel || !el.previewPanel) return;
+
+  if (tab === 'preview') {
+    el.formPanel.classList.add('tab-hidden');
+    el.previewPanel.classList.remove('tab-hidden');
+
+    if (el.tabEdit) {
+      el.tabEdit.classList.remove('active');
+      el.tabEdit.setAttribute('aria-selected', 'false');
+    }
+    if (el.tabPreview) {
+      el.tabPreview.classList.add('active');
+      el.tabPreview.setAttribute('aria-selected', 'true');
+    }
+    if (el.mobileBarToggleBtn) {
+      el.mobileBarToggleBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        <span class="bar-toggle-text">Edit Details</span>
+      `;
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else {
+    el.formPanel.classList.remove('tab-hidden');
+    el.previewPanel.classList.add('tab-hidden');
+
+    if (el.tabEdit) {
+      el.tabEdit.classList.add('active');
+      el.tabEdit.setAttribute('aria-selected', 'true');
+    }
+    if (el.tabPreview) {
+      el.tabPreview.classList.remove('active');
+      el.tabPreview.setAttribute('aria-selected', 'false');
+    }
+    if (el.mobileBarToggleBtn) {
+      el.mobileBarToggleBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span class="bar-toggle-text">Preview</span>
+      `;
+    }
+  }
+}
+
 // ─── Validation ─────────────────────────────────────────────
 
 const VALIDATORS = {
@@ -112,13 +171,18 @@ const VALIDATORS = {
 
 function validateForm() {
   let valid = true;
+  let firstInvalidEl = null;
+
   for (const [id, fn] of Object.entries(VALIDATORS)) {
     const input = el[id];
     const errEl = el.errorFields[id];
     const msg = fn(input.value);
     errEl.textContent = msg;
     input.classList.toggle('input-error', !!msg);
-    if (msg) valid = false;
+    if (msg) {
+      valid = false;
+      if (!firstInvalidEl) firstInvalidEl = input;
+    }
   }
 
   let hasValidItem = false;
@@ -127,6 +191,19 @@ function validateForm() {
   });
   if (!hasValidItem && data.items.length > 0) {
     valid = false;
+    const firstItemDesc = $('.item-desc', el.itemsBody);
+    if (firstItemDesc) {
+      firstItemDesc.classList.add('input-error');
+      if (!firstInvalidEl) firstInvalidEl = firstItemDesc;
+    }
+  }
+
+  if (!valid && firstInvalidEl) {
+    switchTab('edit');
+    setTimeout(() => {
+      firstInvalidEl.focus();
+      firstInvalidEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
   }
 
   return valid;
@@ -136,7 +213,7 @@ function clearValidation() {
   for (const errEl of Object.values(el.errorFields)) {
     errEl.textContent = '';
   }
-  $$('.input-error').forEach(el => el.classList.remove('input-error'));
+  $$('.input-error').forEach(input => input.classList.remove('input-error'));
 }
 
 // ─── Read form → data ──────────────────────────────────────
@@ -176,18 +253,42 @@ function writeForm() {
 function renderItems() {
   const tbody = el.itemsBody;
   tbody.innerHTML = '';
-  data.items.forEach(item => {
+  const canRemove = data.items.length > 1;
+
+  data.items.forEach((item, index) => {
     const tr = document.createElement('tr');
     tr.dataset.id = item.id;
     const isFixed = item.fixedPrice;
     const itemTotal = isFixed ? item.fixedAmount : item.quantity * item.unitPrice;
     tr.innerHTML = `
-      <td><button type="button" class="btn-toggle-type${isFixed ? ' is-fixed' : ''}" data-id="${item.id}" title="${isFixed ? 'Fixed price (click for per-unit)' : 'Per-unit price (click for fixed)'}">${isFixed ? 'F' : 'U'}</button></td>
-      <td><input type="text" class="item-desc"  value="${escapeHtml(item.description)}" placeholder="Item description"${isFixed ? '' : ''}></td>
-      <td>${isFixed ? '<span class="fixed-label">—</span>' : '<input type="number" class="item-qty" value="' + item.quantity + '" min="0" step="1">'}</td>
-      <td>${isFixed ? '<input type="number" class="item-fixed-amount" value="' + fmt(item.fixedAmount) + '" min="0" step="0.01">' : '<input type="number" class="item-price" value="' + item.unitPrice + '" min="0" step="0.01">'}</td>
-      <td class="line-total" data-id="${item.id}">GH₵${fmt(itemTotal)}</td>
-      <td><button type="button" class="btn-remove" data-id="${item.id}" title="Remove item">&times;</button></td>`;
+      <td class="col-toggle">
+        <div class="toggle-wrap">
+          <span class="mobile-item-idx">#${index + 1}</span>
+          <button type="button" class="btn-toggle-type${isFixed ? ' is-fixed' : ''}" data-id="${item.id}" title="${isFixed ? 'Fixed price (click for per-unit)' : 'Per-unit price (click for fixed)'}">
+            <span class="toggle-badge">${isFixed ? 'Fixed Price (F)' : 'Per-unit (U)'}</span>
+            <span class="toggle-badge-short">${isFixed ? 'F' : 'U'}</span>
+          </button>
+        </div>
+      </td>
+      <td class="col-desc">
+        <label class="mobile-field-label">Description</label>
+        <input type="text" class="item-desc" value="${escapeHtml(item.description)}" placeholder="Description of item or service">
+      </td>
+      <td class="col-qty">
+        <label class="mobile-field-label">Quantity</label>
+        ${isFixed ? '<span class="fixed-label">—</span>' : '<input type="number" class="item-qty" value="' + item.quantity + '" min="0" step="1" inputmode="numeric">'}
+      </td>
+      <td class="col-price">
+        <label class="mobile-field-label">${isFixed ? 'Fixed Amount' : 'Price / Unit'}</label>
+        ${isFixed ? '<input type="number" class="item-fixed-amount" value="' + fmt(item.fixedAmount) + '" min="0" step="0.01" inputmode="decimal">' : '<input type="number" class="item-price" value="' + item.unitPrice + '" min="0" step="0.01" inputmode="decimal">'}
+      </td>
+      <td class="col-total">
+        <span class="mobile-field-label">Total</span>
+        <span class="line-total" data-id="${item.id}">GH₵${fmt(itemTotal)}</span>
+      </td>
+      <td class="col-action">
+        <button type="button" class="btn-remove" data-id="${item.id}" title="${canRemove ? 'Remove item' : 'Cannot remove only item'}" aria-label="Remove item" ${canRemove ? '' : 'disabled'}>&times;</button>
+      </td>`;
     tbody.appendChild(tr);
   });
 }
@@ -196,6 +297,15 @@ function addItem() {
   data.items.push({ id: generateId(), description: '', quantity: 1, unitPrice: 0, fixedPrice: false, fixedAmount: 0 });
   renderItems();
   calcAll();
+
+  // Scroll to new item on mobile
+  const newRow = el.itemsBody.lastElementChild;
+  if (newRow && window.innerWidth < 768) {
+    const descInput = newRow.querySelector('.item-desc');
+    if (descInput) {
+      setTimeout(() => descInput.focus(), 50);
+    }
+  }
 }
 
 function removeItem(id) {
@@ -231,6 +341,7 @@ function onItemInput(e) {
 
   if (e.target.classList.contains('item-desc')) {
     item.description = e.target.value;
+    e.target.classList.remove('input-error');
   } else if (e.target.classList.contains('item-qty')) {
     item.quantity = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
   } else if (e.target.classList.contains('item-price')) {
@@ -326,10 +437,13 @@ function onItemBlur(e) {
 }
 
 function onItemClick(e) {
-  if (e.target.classList.contains('btn-remove')) {
-    removeItem(e.target.dataset.id);
-  } else if (e.target.classList.contains('btn-toggle-type')) {
-    togglePriceType(e.target.dataset.id);
+  const removeBtn = e.target.closest('.btn-remove');
+  const toggleBtn = e.target.closest('.btn-toggle-type');
+
+  if (removeBtn && !removeBtn.disabled) {
+    removeItem(removeBtn.dataset.id);
+  } else if (toggleBtn) {
+    togglePriceType(toggleBtn.dataset.id);
   }
 }
 
@@ -352,11 +466,19 @@ function calcAll() {
   const taxAmount = subtotal * (data.taxRate / 100);
   const downPayment = data.downPayment || 0;
   const grandTotal = subtotal + taxAmount - downPayment;
+  const formattedTotal = 'GH₵' + fmt(Math.max(0, grandTotal));
 
   el.displaySubtotal.textContent = 'GH₵' + fmt(subtotal);
   el.displayTax.textContent = 'GH₵' + fmt(taxAmount);
   el.displayDownPayment.textContent = 'GH₵' + fmt(downPayment);
-  el.displayTotal.textContent = 'GH₵' + fmt(Math.max(0, grandTotal));
+  el.displayTotal.textContent = formattedTotal;
+
+  if (el.tabTotalBadge) {
+    el.tabTotalBadge.textContent = formattedTotal;
+  }
+  if (el.mobileBarTotal) {
+    el.mobileBarTotal.textContent = formattedTotal;
+  }
 
   data.subtotal = subtotal;
   data.taxAmount = taxAmount;
@@ -411,7 +533,7 @@ function renderPreview() {
   const emptyRows = data.items.filter(it => !it.description).length;
   let emptyHtml = '';
   if (data.items.length === 0 || (emptyRows === data.items.length && !data.customerName)) {
-    emptyHtml = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:1rem;">No items added yet.</td></tr>`;
+    emptyHtml = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:1.5rem 1rem;">No items added yet.</td></tr>`;
   }
 
   const downPayment = data.downPayment || 0;
@@ -428,31 +550,33 @@ function renderPreview() {
         </div>
         <div class="invoice-meta">
           <span class="inv-number">${escapeHtml(data.invoiceNumber)}</span>
-          <strong>Date:</strong> ${dateStr}
+          <div class="inv-date-line"><strong>Date:</strong> <span>${dateStr}</span></div>
         </div>
       </div>
 
       <div class="invoice-bill-to">
         <h4>Bill To:</h4>
-        <p>${escapeHtml(data.customerName || 'Customer Name')}<br>
-           ${escapeHtml(data.customerAddress || 'Customer Address')}</p>
+        <p class="bill-name">${escapeHtml(data.customerName || 'Customer Name')}</p>
+        <p class="bill-addr">${escapeHtml(data.customerAddress || 'Customer Address')}</p>
       </div>
 
       <div class="invoice-items">
-        <table>
-          <thead>
-            <tr>
-              <th>Description</th>
-              <th class="text-right">Qty</th>
-              <th class="text-right">Unit Price</th>
-              <th class="text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemsHtml}
-            ${emptyHtml}
-          </tbody>
-        </table>
+        <div class="invoice-items-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th class="text-right">Qty</th>
+                <th class="text-right">Unit Price</th>
+                <th class="text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+              ${emptyHtml}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div class="invoice-summary">
@@ -481,7 +605,7 @@ function saveToStorage() {
   readForm();
   try {
     localStorage.setItem('invoiceData', JSON.stringify(data));
-    showToast('Invoice saved!');
+    showToast('Invoice saved successfully!');
   } catch {
     showToast('Failed to save invoice.', true);
   }
@@ -669,7 +793,6 @@ function exportPDF() {
   const grandTotal = subtotal + taxAmt - downPayment;
 
   const summaryX = pageWidth - margin - 60;
-  const summaryW = 60;
 
   doc.setFontSize(9);
   doc.setTextColor(...grayClr);
@@ -749,7 +872,12 @@ function init() {
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      parsed.items = parsed.items.map(it => ({ ...it, id: it.id || generateId(), fixedPrice: it.fixedPrice || false, fixedAmount: it.fixedAmount || 0 }));
+      parsed.items = parsed.items.map(it => ({
+        ...it,
+        id: it.id || generateId(),
+        fixedPrice: it.fixedPrice || false,
+        fixedAmount: it.fixedAmount || 0,
+      }));
       if (!parsed.receiverName) parsed.receiverName = '';
       if (parsed.downPayment === undefined) parsed.downPayment = 0;
       data = parsed;
@@ -779,6 +907,35 @@ function init() {
   el.clearBtn.addEventListener('click', clearInvoice);
   el.printBtn.addEventListener('click', printInvoice);
   el.exportBtn.addEventListener('click', exportPDF);
+
+  // ── Navigation & responsive buttons ──
+  if (el.tabEdit) {
+    el.tabEdit.addEventListener('click', () => switchTab('edit'));
+  }
+  if (el.tabPreview) {
+    el.tabPreview.addEventListener('click', () => switchTab('preview'));
+  }
+  if (el.mobileBarToggleBtn) {
+    el.mobileBarToggleBtn.addEventListener('click', () => {
+      switchTab(currentTab === 'edit' ? 'preview' : 'edit');
+    });
+  }
+  if (el.previewBackBtn) {
+    el.previewBackBtn.addEventListener('click', () => switchTab('edit'));
+  }
+  if (el.previewExportBtn) {
+    el.previewExportBtn.addEventListener('click', exportPDF);
+  }
+
+  // Handle window resize between mobile tab mode and desktop dual-column
+  window.addEventListener('resize', () => {
+    if (window.innerWidth >= 992) {
+      if (el.formPanel) el.formPanel.classList.remove('tab-hidden');
+      if (el.previewPanel) el.previewPanel.classList.remove('tab-hidden');
+    } else {
+      switchTab(currentTab);
+    }
+  });
 }
 
 document.addEventListener('DOMContentLoaded', init);
