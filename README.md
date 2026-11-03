@@ -42,6 +42,7 @@ Equipped with real-time live previewing, automated currency calculations, PDF ex
 ### 💰 Calculations & Billing
 - **Dual Price Modes**: Supports standard per-unit pricing (`Qty × Unit Price`) as well as single fixed-price line items (`F`).
 - **Flexible Tax & Down Payments**: Configurable tax percentage rate and down payment deductions with automatic real-time recalculation.
+- **📒 Customer Debt Ledger & Balance Forward**: Dedicated ledger to record and track customer debts ("who owes you") with notes and contact info. When issuing a new invoice, existing customer debts are automatically detected with a 1-click option to bring forward previous balances, clearly separating current invoice charges from past due balances on screens, printouts, and PDFs.
 - **Currency Formatting**: Formatted in Ghanaian Cedi (`GH₵` / `GHS`) with clean monospace alignment.
 
 ### 📄 Export & Print
