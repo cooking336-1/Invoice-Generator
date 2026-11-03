@@ -49,11 +49,14 @@ function freshInvoice() {
     items: [{ id: generateId(), description: '', quantity: 1, unitPrice: 0, fixedPrice: false, fixedAmount: 0 }],
     taxRate: 0,
     downPayment: 0,
+    previousBalance: 0,
   };
 }
 
 let data = freshInvoice();
 let currentTab = 'edit';
+let customerDebts = [];
+let dismissedDebtCustomer = null;
 
 // ─── DOM Cache ──────────────────────────────────────────────
 
@@ -100,8 +103,44 @@ function cacheDom() {
   el.formFields = [
     el.companyName, el.companyAddress, el.companyPhone, el.companyEmail,
     el.invoiceNumber, el.invoiceDate,
-    el.customerName, el.customerAddress, el.receiverName, el.taxRate, el.downPayment,
+    el.customerName, el.customerAddress, el.receiverName, el.taxRate, el.downPayment, el.previousBalance,
   ];
+
+  el.previousBalance = $('#previousBalance');
+  el.displayPreviousBalanceRow = $('#displayPreviousBalanceRow');
+  el.displayPreviousBalance = $('#displayPreviousBalance');
+  el.displayTotalLabel = $('#displayTotalLabel');
+
+  // Customer Debts Ledger elements
+  el.openDebtsBtn = $('#openDebtsBtn');
+  el.manageDebtsInlineBtn = $('#manageDebtsInlineBtn');
+  el.debtCountBadge = $('#debtCountBadge');
+  el.customerSuggestions = $('#customerSuggestions');
+  el.customerDebtAlert = $('#customerDebtAlert');
+  el.debtAlertCustomerName = $('#debtAlertCustomerName');
+  el.debtAlertAmount = $('#debtAlertAmount');
+  el.applyDebtBtn = $('#applyDebtBtn');
+  el.dismissDebtAlertBtn = $('#dismissDebtAlertBtn');
+
+  // Debts Modal Elements
+  el.debtsModal = $('#debtsModal');
+  el.closeDebtsModalBtn = $('#closeDebtsModalBtn');
+  el.debtForm = $('#debtForm');
+  el.debtEditId = $('#debtEditId');
+  el.debtFormTitle = $('#debtFormTitle');
+  el.debtCustomerName = $('#debtCustomerName');
+  el.debtCustomerPhone = $('#debtCustomerPhone');
+  el.debtCustomerAddress = $('#debtCustomerAddress');
+  el.debtAmount = $('#debtAmount');
+  el.debtNotes = $('#debtNotes');
+  el.debtNameError = $('#debtNameError');
+  el.debtAmountError = $('#debtAmountError');
+  el.saveDebtRecordBtn = $('#saveDebtRecordBtn');
+  el.saveDebtBtnText = $('#saveDebtBtnText');
+  el.cancelDebtEditBtn = $('#cancelDebtEditBtn');
+  el.searchDebtsInput = $('#searchDebtsInput');
+  el.totalDebtsAmount = $('#totalDebtsAmount');
+  el.debtsListContainer = $('#debtsListContainer');
 
   el.errorFields = {
     companyName: $('#companyNameError'),
@@ -230,6 +269,7 @@ function readForm() {
   data.receiverName = el.receiverName.value;
   data.taxRate = parseFloat(el.taxRate.value) || 0;
   data.downPayment = parseFloat(el.downPayment.value) || 0;
+  data.previousBalance = parseFloat(el.previousBalance ? el.previousBalance.value : 0) || 0;
 }
 
 // ─── Write data → form ─────────────────────────────────────
@@ -246,6 +286,7 @@ function writeForm() {
   el.receiverName.value = data.receiverName;
   el.taxRate.value = data.taxRate;
   el.downPayment.value = fmt(data.downPayment || 0);
+  if (el.previousBalance) el.previousBalance.value = fmt(data.previousBalance || 0);
 }
 
 // ─── Items table (form) ────────────────────────────────────
@@ -358,22 +399,24 @@ function onItemKeydown(e) {
   const isPrice = e.target.classList.contains('item-price');
   const isFixed = e.target.classList.contains('item-fixed-amount');
   const isDownPayment = e.target.id === 'downPayment';
-  if (!isPrice && !isFixed && !isDownPayment) return;
+  const isPreviousBalance = e.target.id === 'previousBalance';
+  if (!isPrice && !isFixed && !isDownPayment && !isPreviousBalance) return;
 
-  if (isDownPayment) {
+  if (isDownPayment || isPreviousBalance) {
+    const prop = isDownPayment ? 'downPayment' : 'previousBalance';
     if (e.key >= '0' && e.key <= '9') {
       e.preventDefault();
-      const cents = Math.round((data.downPayment || 0) * 100);
+      const cents = Math.round((data[prop] || 0) * 100);
       const newCents = cents * 10 + parseInt(e.key);
-      data.downPayment = newCents / 100;
-      e.target.value = fmt(data.downPayment);
+      data[prop] = newCents / 100;
+      e.target.value = fmt(data[prop]);
       calcAll();
     } else if (e.key === 'Backspace') {
       e.preventDefault();
-      const cents = Math.round((data.downPayment || 0) * 100);
+      const cents = Math.round((data[prop] || 0) * 100);
       const newCents = Math.floor(cents / 10);
-      data.downPayment = newCents / 100;
-      e.target.value = fmt(data.downPayment);
+      data[prop] = newCents / 100;
+      e.target.value = fmt(data[prop]);
       calcAll();
     }
     return;
@@ -415,6 +458,12 @@ function onItemBlur(e) {
   if (e.target.id === 'downPayment') {
     data.downPayment = Math.max(0, parseFloat(e.target.value) || 0);
     e.target.value = fmt(data.downPayment);
+    calcAll();
+    return;
+  }
+  if (e.target.id === 'previousBalance') {
+    data.previousBalance = Math.max(0, parseFloat(e.target.value) || 0);
+    e.target.value = fmt(data.previousBalance);
     calcAll();
     return;
   }
@@ -906,6 +955,322 @@ function initTheme() {
   } catch(e) {}
 }
 
+
+// ─── Customer Debts Ledger Management ──────────────────────
+
+function loadCustomerDebts() {
+  try {
+    const raw = localStorage.getItem('invoice_customer_debts');
+    customerDebts = raw ? JSON.parse(raw) : [];
+  } catch(e) {
+    customerDebts = [];
+  }
+  updateDebtsBadge();
+  populateCustomerSuggestions();
+}
+
+function saveCustomerDebts() {
+  try {
+    localStorage.setItem('invoice_customer_debts', JSON.stringify(customerDebts));
+  } catch(e) {}
+  updateDebtsBadge();
+  populateCustomerSuggestions();
+}
+
+function updateDebtsBadge() {
+  const count = customerDebts.filter(d => (d.amountOwed || 0) > 0).length;
+  if (el.debtCountBadge) {
+    el.debtCountBadge.textContent = count;
+    el.debtCountBadge.classList.toggle('has-debts', count > 0);
+  }
+}
+
+function populateCustomerSuggestions() {
+  if (!el.customerSuggestions) return;
+  el.customerSuggestions.innerHTML = '';
+  customerDebts.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.name;
+    if (d.amountOwed > 0) {
+      opt.label = `Owes GH₵${fmt(d.amountOwed)}`;
+    }
+    el.customerSuggestions.appendChild(opt);
+  });
+}
+
+function checkCustomerDebt() {
+  if (!el.customerName) return;
+  const name = (el.customerName.value || '').trim().toLowerCase();
+  if (!name || (dismissedDebtCustomer && dismissedDebtCustomer === name)) {
+    hideDebtAlert();
+    return;
+  }
+
+  const match = customerDebts.find(d => d.name && d.name.trim().toLowerCase() === name && (d.amountOwed || 0) > 0);
+  if (match) {
+    if (el.debtAlertCustomerName) el.debtAlertCustomerName.textContent = match.name;
+    if (el.debtAlertAmount) el.debtAlertAmount.textContent = 'GH₵' + fmt(match.amountOwed);
+    if (el.customerDebtAlert) {
+      el.customerDebtAlert.dataset.customerId = match.id;
+      el.customerDebtAlert.dataset.debtAmount = match.amountOwed;
+      el.customerDebtAlert.style.display = 'flex';
+    }
+  } else {
+    hideDebtAlert();
+  }
+}
+
+function hideDebtAlert() {
+  if (el.customerDebtAlert) el.customerDebtAlert.style.display = 'none';
+}
+
+function applyDetectedDebt() {
+  const amt = parseFloat(el.customerDebtAlert ? el.customerDebtAlert.dataset.debtAmount : 0) || 0;
+  if (amt > 0) {
+    data.previousBalance = amt;
+    if (el.previousBalance) el.previousBalance.value = fmt(amt);
+    calcAll();
+    hideDebtAlert();
+    showToast(`Added GH₵${fmt(amt)} previous balance to invoice!`);
+  }
+}
+
+function dismissDebtAlert() {
+  dismissedDebtCustomer = (el.customerName.value || '').trim().toLowerCase();
+  hideDebtAlert();
+}
+
+function openDebtsModal() {
+  if (!el.debtsModal) return;
+  el.debtsModal.style.display = 'flex';
+  renderDebtsList(el.searchDebtsInput ? el.searchDebtsInput.value : '');
+  if (el.debtCustomerName) {
+    setTimeout(() => el.debtCustomerName.focus(), 60);
+  }
+}
+
+function closeDebtsModal() {
+  if (!el.debtsModal) return;
+  el.debtsModal.style.display = 'none';
+  resetDebtForm();
+}
+
+function resetDebtForm() {
+  if (!el.debtForm) return;
+  el.debtForm.reset();
+  if (el.debtEditId) el.debtEditId.value = '';
+  if (el.debtFormTitle) el.debtFormTitle.textContent = 'Write Down Customer Debt';
+  if (el.saveDebtBtnText) el.saveDebtBtnText.textContent = 'Save to Ledger';
+  if (el.cancelDebtEditBtn) el.cancelDebtEditBtn.style.display = 'none';
+  if (el.debtNameError) el.debtNameError.textContent = '';
+  if (el.debtAmountError) el.debtAmountError.textContent = '';
+}
+
+function handleDebtFormSubmit(e) {
+  e.preventDefault();
+  const editId = el.debtEditId ? el.debtEditId.value.trim() : '';
+  const name = el.debtCustomerName ? el.debtCustomerName.value.trim() : '';
+  const amount = el.debtAmount ? parseFloat(el.debtAmount.value) : 0;
+  const phone = el.debtCustomerPhone ? el.debtCustomerPhone.value.trim() : '';
+  const address = el.debtCustomerAddress ? el.debtCustomerAddress.value.trim() : '';
+  const notes = el.debtNotes ? el.debtNotes.value.trim() : '';
+
+  let valid = true;
+  if (!name) {
+    if (el.debtNameError) el.debtNameError.textContent = 'Customer name is required.';
+    valid = false;
+  } else if (el.debtNameError) {
+    el.debtNameError.textContent = '';
+  }
+
+  if (isNaN(amount) || amount < 0) {
+    if (el.debtAmountError) el.debtAmountError.textContent = 'Valid amount is required.';
+    valid = false;
+  } else if (el.debtAmountError) {
+    el.debtAmountError.textContent = '';
+  }
+
+  if (!valid) return;
+
+  if (editId) {
+    const item = customerDebts.find(d => d.id === editId);
+    if (item) {
+      item.name = name;
+      item.amountOwed = amount;
+      item.phone = phone;
+      item.address = address;
+      item.notes = notes;
+      item.updatedAt = new Date().toISOString();
+      showToast('Customer debt updated!');
+    }
+  } else {
+    // Check if customer already exists in ledger
+    const existing = customerDebts.find(d => d.name.trim().toLowerCase() === name.toLowerCase());
+    if (existing) {
+      existing.amountOwed += amount;
+      if (phone) existing.phone = phone;
+      if (address) existing.address = address;
+      if (notes) existing.notes = (existing.notes ? existing.notes + '; ' : '') + notes;
+      existing.updatedAt = new Date().toISOString();
+      showToast(`Added GH₵${fmt(amount)} to ${name}'s balance! Total: GH₵${fmt(existing.amountOwed)}`);
+    } else {
+      customerDebts.unshift({
+        id: 'deb_' + generateId(),
+        name,
+        amountOwed: amount,
+        phone,
+        address,
+        notes,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      showToast(`Recorded debt for ${name}!`);
+    }
+  }
+
+  saveCustomerDebts();
+  resetDebtForm();
+  renderDebtsList(el.searchDebtsInput ? el.searchDebtsInput.value : '');
+  checkCustomerDebt();
+}
+
+function startEditDebt(id) {
+  const item = customerDebts.find(d => d.id === id);
+  if (!item) return;
+
+  if (el.debtEditId) el.debtEditId.value = item.id;
+  if (el.debtCustomerName) el.debtCustomerName.value = item.name;
+  if (el.debtAmount) el.debtAmount.value = fmt(item.amountOwed);
+  if (el.debtCustomerPhone) el.debtCustomerPhone.value = item.phone || '';
+  if (el.debtCustomerAddress) el.debtCustomerAddress.value = item.address || '';
+  if (el.debtNotes) el.debtNotes.value = item.notes || '';
+
+  if (el.debtFormTitle) el.debtFormTitle.textContent = `Edit Debt for ${item.name}`;
+  if (el.saveDebtBtnText) el.saveDebtBtnText.textContent = 'Update Record';
+  if (el.cancelDebtEditBtn) el.cancelDebtEditBtn.style.display = 'inline-flex';
+
+  el.debtCustomerName.focus();
+  el.debtsModal.querySelector('.modal-body').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function recordDebtPayment(id) {
+  const item = customerDebts.find(d => d.id === id);
+  if (!item) return;
+  const input = prompt(`Enter payment amount received from "${item.name}" (Current debt: GH₵${fmt(item.amountOwed)}):`, fmt(item.amountOwed));
+  if (input === null) return;
+  const paid = parseFloat(input);
+  if (isNaN(paid) || paid <= 0) {
+    showToast('Invalid payment amount.', true);
+    return;
+  }
+  item.amountOwed = Math.max(0, item.amountOwed - paid);
+  item.updatedAt = new Date().toISOString();
+  if (item.amountOwed === 0) {
+    showToast(`Debt fully settled for ${item.name}! 🎉`);
+  } else {
+    showToast(`Recorded GH₵${fmt(paid)} payment. Remaining: GH₵${fmt(item.amountOwed)}`);
+  }
+  saveCustomerDebts();
+  renderDebtsList(el.searchDebtsInput ? el.searchDebtsInput.value : '');
+  checkCustomerDebt();
+}
+
+function deleteDebt(id) {
+  const item = customerDebts.find(d => d.id === id);
+  if (!item) return;
+  if (!confirm(`Delete debt record for "${item.name}"?`)) return;
+  customerDebts = customerDebts.filter(d => d.id !== id);
+  saveCustomerDebts();
+  renderDebtsList(el.searchDebtsInput ? el.searchDebtsInput.value : '');
+  checkCustomerDebt();
+  showToast('Debt record deleted.');
+}
+
+function createInvoiceForCustomer(id) {
+  const item = customerDebts.find(d => d.id === id);
+  if (!item) return;
+  closeDebtsModal();
+  switchTab('edit');
+
+  el.customerName.value = item.name;
+  if (item.address) el.customerAddress.value = item.address;
+  if (el.previousBalance) el.previousBalance.value = fmt(item.amountOwed);
+
+  data.customerName = item.name;
+  if (item.address) data.customerAddress = item.address;
+  data.previousBalance = item.amountOwed;
+
+  calcAll();
+  showToast(`Loaded ${item.name} with GH₵${fmt(item.amountOwed)} previous balance!`);
+}
+
+function renderDebtsList(filterText = '') {
+  if (!el.debtsListContainer) return;
+  const query = (filterText || '').trim().toLowerCase();
+  const filtered = customerDebts.filter(d => {
+    if (!query) return true;
+    return (
+      (d.name && d.name.toLowerCase().includes(query)) ||
+      (d.phone && d.phone.toLowerCase().includes(query)) ||
+      (d.notes && d.notes.toLowerCase().includes(query))
+    );
+  });
+
+  const totalReceivables = customerDebts.reduce((sum, d) => sum + (d.amountOwed || 0), 0);
+  if (el.totalDebtsAmount) {
+    el.totalDebtsAmount.textContent = 'GH₵' + fmt(totalReceivables);
+  }
+
+  if (filtered.length === 0) {
+    el.debtsListContainer.innerHTML = `
+      <div class="debts-empty-state">
+        <div class="debts-empty-icon">${query ? '🔍' : '🎉'}</div>
+        <p><strong>${query ? 'No matching customers found' : 'No customers currently owe'}</strong></p>
+        <p style="margin-top: 0.25rem; font-size: 0.8rem;">${query ? 'Try a different search term.' : 'Use the form above to record who owes you money.'}</p>
+      </div>
+    `;
+    return;
+  }
+
+  el.debtsListContainer.innerHTML = filtered.map(d => {
+    const dateStr = d.updatedAt ? new Date(d.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+    return `
+      <div class="debt-card" data-id="${d.id}">
+        <div class="debt-card-top">
+          <div class="debt-card-customer">
+            <span class="debt-card-name">${escapeHtml(d.name)}</span>
+            <span class="debt-card-meta">${d.phone ? escapeHtml(d.phone) + ' • ' : ''}Updated: ${dateStr}</span>
+          </div>
+          <span class="debt-card-amount">GH₵${fmt(d.amountOwed)}</span>
+        </div>
+        ${d.address || d.notes ? `
+          <div class="debt-card-details">
+            ${d.address ? `<div><strong>Address:</strong> ${escapeHtml(d.address)}</div>` : ''}
+            ${d.notes ? `<div><strong>Note:</strong> ${escapeHtml(d.notes)}</div>` : ''}
+          </div>
+        ` : ''}
+        <div class="debt-card-actions">
+          <button type="button" class="btn btn-xs btn-primary btn-create-inv-for-debt" data-id="${d.id}" title="Create an invoice with this balance">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Create Invoice
+          </button>
+          <button type="button" class="btn btn-xs btn-outline btn-pay-debt" data-id="${d.id}" title="Record payment or settle debt">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Record Payment
+          </button>
+          <button type="button" class="btn btn-xs btn-outline btn-edit-debt" data-id="${d.id}" title="Edit customer or balance">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            Edit
+          </button>
+          <button type="button" class="btn btn-xs btn-outline btn-danger btn-delete-debt" data-id="${d.id}" title="Delete record">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 // ─── Init ──────────────────────────────────────────────────
 
 function init() {
@@ -924,6 +1289,7 @@ function init() {
       }));
       if (!parsed.receiverName) parsed.receiverName = '';
       if (parsed.downPayment === undefined) parsed.downPayment = 0;
+      if (parsed.previousBalance === undefined) parsed.previousBalance = 0;
       data = parsed;
     } catch { /* use defaults */ }
   }
