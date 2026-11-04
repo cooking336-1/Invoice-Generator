@@ -162,6 +162,13 @@ function switchTab(tab) {
   currentTab = tab;
   if (!el.formPanel || !el.previewPanel) return;
 
+  // On laptop/desktop dual-column layout (>= 768px), keep both panels visible
+  if (window.innerWidth >= 768) {
+    el.formPanel.classList.remove('tab-hidden');
+    el.previewPanel.classList.remove('tab-hidden');
+    return;
+  }
+
   if (tab === 'preview') {
     el.formPanel.classList.add('tab-hidden');
     el.previewPanel.classList.remove('tab-hidden');
@@ -1452,13 +1459,21 @@ function init() {
 
   // Handle window resize between mobile tab mode and desktop dual-column
   window.addEventListener('resize', () => {
-    if (window.innerWidth >= 992) {
+    if (window.innerWidth >= 768) {
       if (el.formPanel) el.formPanel.classList.remove('tab-hidden');
       if (el.previewPanel) el.previewPanel.classList.remove('tab-hidden');
     } else {
       switchTab(currentTab);
     }
   });
+
+  // Set initial panel visibility according to viewport width
+  if (window.innerWidth >= 768) {
+    if (el.formPanel) el.formPanel.classList.remove('tab-hidden');
+    if (el.previewPanel) el.previewPanel.classList.remove('tab-hidden');
+  } else {
+    switchTab(currentTab);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);

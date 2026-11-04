@@ -1153,8 +1153,32 @@ button, input, select, textarea, a {
    RESPONSIVE MEDIA QUERIES (Mobile, Tablet, Desktop)
    ============================================================ */
 
-/* ─── Tablet & Mobile (< 992px) ─── */
-@media (max-width: 991px) {
+/* ─── Tablet & Laptop / Medium Displays (768px – 1024px) ─── */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .container {
+    padding: 1.25rem 1rem 3rem;
+  }
+
+  .main-grid {
+    grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+    gap: 1.25rem;
+  }
+
+  .panel {
+    padding: 1.35rem;
+  }
+
+  .tax-summary-layout {
+    flex-direction: row;
+  }
+
+  .summary-display {
+    max-width: 320px;
+  }
+}
+
+/* ─── Mobile Specific (< 768px) ─── */
+@media (max-width: 767px) {
   .view-tabs {
     display: flex;
   }
@@ -1164,7 +1188,7 @@ button, input, select, textarea, a {
   }
 
   .container {
-    padding: 1rem 1rem 5.5rem; /* Room for fixed bottom bar */
+    padding: 0.75rem 0.75rem 5.5rem;
   }
 
   .main-grid {
@@ -1181,28 +1205,6 @@ button, input, select, textarea, a {
   /* Controlled by switchTab() in script.js */
   .panel.tab-hidden {
     display: none !important;
-  }
-}
-
-/* ─── Tablet Specific (768px – 991px) ─── */
-@media (min-width: 768px) and (max-width: 991px) {
-  .panel {
-    padding: 1.5rem;
-  }
-
-  .tax-summary-layout {
-    flex-direction: row;
-  }
-
-  .summary-display {
-    max-width: 320px;
-  }
-}
-
-/* ─── Mobile Specific (< 768px) ─── */
-@media (max-width: 767px) {
-  .container {
-    padding: 0.75rem 0.75rem 5.5rem;
   }
 
   .app-header {
