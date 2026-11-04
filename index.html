@@ -204,12 +204,18 @@
                   <input type="number" id="downPayment" min="0" step="0.01" value="0" placeholder="0.00">
                 </div>
               </div>
-            </div>
-            <div class="form-group">
-                <label for="previousBalance">Previous Balance (Owed)</label>
-                <div class="input-adornment-wrap">
+              <div class="form-group previous-balance-group">
+                <div class="toggle-switch-container">
+                  <span class="switch-field-title">Previous Balance (Owed)</span>
+                  <label for="includePreviousBalance" class="switch-label-wrap" id="switchLabelWrap" title="Toggle to add or remove previous balance from the bill total">
+                    <input type="checkbox" id="includePreviousBalance" class="switch-input" role="switch" aria-checked="false">
+                    <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+                    <span class="switch-state-text" id="previousBalanceStateText">Off</span>
+                  </label>
+                </div>
+                <div class="input-adornment-wrap previous-balance-wrap is-disabled" id="previousBalanceWrap">
                   <span class="input-prefix">GH₵</span>
-                  <input type="number" id="previousBalance" min="0" step="0.01" value="0" placeholder="0.00">
+                  <input type="number" id="previousBalance" min="0" step="0.01" value="0" placeholder="0.00" disabled aria-label="Previous balance amount">
                 </div>
               </div>
             </div>

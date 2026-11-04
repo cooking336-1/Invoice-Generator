@@ -49,6 +49,7 @@ function freshInvoice() {
     items: [{ id: generateId(), description: '', quantity: 1, unitPrice: 0, fixedPrice: false, fixedAmount: 0 }],
     taxRate: 0,
     downPayment: 0,
+    includePreviousBalance: false,
     previousBalance: 0,
   };
 }
@@ -75,6 +76,10 @@ function cacheDom() {
   el.taxRate = $('#taxRate');
   el.downPayment = $('#downPayment');
   el.previousBalance = $('#previousBalance');
+  el.includePreviousBalance = $('#includePreviousBalance');
+  el.previousBalanceWrap = $('#previousBalanceWrap');
+  el.switchLabelWrap = $('#switchLabelWrap');
+  el.previousBalanceStateText = $('#previousBalanceStateText');
   el.itemsBody = $('#itemsBody');
   el.addItemBtn = $('#addItemBtn');
   el.saveBtn = $('#saveBtn');
@@ -254,6 +259,22 @@ function clearValidation() {
   $$('.input-error').forEach(input => input.classList.remove('input-error'));
 }
 
+
+function syncPreviousBalanceToggle() {
+  if (!el.includePreviousBalance || !el.previousBalanceWrap || !el.previousBalance) return;
+  const isChecked = el.includePreviousBalance.checked;
+  el.includePreviousBalance.setAttribute('aria-checked', isChecked ? 'true' : 'false');
+  el.previousBalanceWrap.classList.toggle('is-disabled', !isChecked);
+  el.previousBalanceWrap.classList.toggle('is-active', isChecked);
+  el.previousBalance.disabled = !isChecked;
+  if (el.switchLabelWrap) {
+    el.switchLabelWrap.classList.toggle('is-on', isChecked);
+  }
+  if (el.previousBalanceStateText) {
+    el.previousBalanceStateText.textContent = isChecked ? 'On' : 'Off';
+  }
+}
+
 // ─── Read form → data ──────────────────────────────────────
 
 function readForm() {
@@ -268,6 +289,7 @@ function readForm() {
   data.receiverName = el.receiverName.value;
   data.taxRate = parseFloat(el.taxRate.value) || 0;
   data.downPayment = parseFloat(el.downPayment.value) || 0;
+  data.includePreviousBalance = el.includePreviousBalance ? el.includePreviousBalance.checked : false;
   data.previousBalance = parseFloat(el.previousBalance ? el.previousBalance.value : 0) || 0;
 }
 
@@ -285,7 +307,9 @@ function writeForm() {
   el.receiverName.value = data.receiverName;
   el.taxRate.value = data.taxRate;
   el.downPayment.value = fmt(data.downPayment || 0);
+  if (el.includePreviousBalance) el.includePreviousBalance.checked = !!data.includePreviousBalance;
   if (el.previousBalance) el.previousBalance.value = fmt(data.previousBalance || 0);
+  syncPreviousBalanceToggle();
 }
 
 // ─── Items table (form) ────────────────────────────────────
@@ -1026,11 +1050,14 @@ function hideDebtAlert() {
 function applyDetectedDebt() {
   const amt = parseFloat(el.customerDebtAlert ? el.customerDebtAlert.dataset.debtAmount : 0) || 0;
   if (amt > 0) {
+    data.includePreviousBalance = true;
     data.previousBalance = amt;
+    if (el.includePreviousBalance) el.includePreviousBalance.checked = true;
     if (el.previousBalance) el.previousBalance.value = fmt(amt);
+    syncPreviousBalanceToggle();
     calcAll();
     hideDebtAlert();
-    showToast(`Added GH₵${fmt(amt)} previous balance to invoice!`);
+    showToast(`Toggled ON: Added GH₵${fmt(amt)} previous balance to bill total!`);
   }
 }
 
@@ -1193,14 +1220,17 @@ function createInvoiceForCustomer(id) {
 
   el.customerName.value = item.name;
   if (item.address) el.customerAddress.value = item.address;
+  if (el.includePreviousBalance) el.includePreviousBalance.checked = true;
   if (el.previousBalance) el.previousBalance.value = fmt(item.amountOwed);
 
   data.customerName = item.name;
   if (item.address) data.customerAddress = item.address;
+  data.includePreviousBalance = true;
   data.previousBalance = item.amountOwed;
 
+  syncPreviousBalanceToggle();
   calcAll();
-  showToast(`Loaded ${item.name} with GH₵${fmt(item.amountOwed)} previous balance!`);
+  showToast(`Loaded ${item.name} with GH₵${fmt(item.amountOwed)} previous balance toggled ON!`);
 }
 
 function renderDebtsList(filterText = '') {
@@ -1290,6 +1320,7 @@ function init() {
       if (!parsed.receiverName) parsed.receiverName = '';
       if (parsed.downPayment === undefined) parsed.downPayment = 0;
       if (parsed.previousBalance === undefined) parsed.previousBalance = 0;
+      if (parsed.includePreviousBalance === undefined) parsed.includePreviousBalance = (parsed.previousBalance > 0);
       data = parsed;
     } catch { /* use defaults */ }
   }
@@ -1307,6 +1338,24 @@ function init() {
   if (el.previousBalance) {
     el.previousBalance.addEventListener('keydown', onItemKeydown);
     el.previousBalance.addEventListener('focusout', onItemBlur);
+  }
+  if (el.includePreviousBalance) {
+    el.includePreviousBalance.addEventListener('change', () => {
+      syncPreviousBalanceToggle();
+      if (el.includePreviousBalance.checked) {
+        const currentAmt = parseFloat(el.previousBalance.value) || 0;
+        if (currentAmt === 0 && el.customerName) {
+          const cName = (el.customerName.value || '').trim().toLowerCase();
+          const match = customerDebts.find(d => d.name && d.name.trim().toLowerCase() === cName && d.amountOwed > 0);
+          if (match) {
+            el.previousBalance.value = fmt(match.amountOwed);
+            data.previousBalance = match.amountOwed;
+          }
+        }
+        el.previousBalance.focus();
+      }
+      calcAll();
+    });
   }
 
   // ── Form input binding ──
