@@ -74,6 +74,7 @@ function cacheDom() {
   el.receiverName = $('#receiverName');
   el.taxRate = $('#taxRate');
   el.downPayment = $('#downPayment');
+  el.previousBalance = $('#previousBalance');
   el.itemsBody = $('#itemsBody');
   el.addItemBtn = $('#addItemBtn');
   el.saveBtn = $('#saveBtn');
@@ -86,6 +87,9 @@ function cacheDom() {
   el.displaySubtotal = $('#displaySubtotal');
   el.displayTax = $('#displayTax');
   el.displayDownPayment = $('#displayDownPayment');
+  el.displayPreviousBalanceRow = $('#displayPreviousBalanceRow');
+  el.displayPreviousBalance = $('#displayPreviousBalance');
+  el.displayTotalLabel = $('#displayTotalLabel');
   el.displayTotal = $('#displayTotal');
 
   // Navigation & responsive elements
@@ -99,17 +103,6 @@ function cacheDom() {
   el.mobileBarToggleBtn = $('#mobileBarToggleBtn');
   el.previewBackBtn = $('#previewBackBtn');
   el.previewExportBtn = $('#previewExportBtn');
-
-  el.formFields = [
-    el.companyName, el.companyAddress, el.companyPhone, el.companyEmail,
-    el.invoiceNumber, el.invoiceDate,
-    el.customerName, el.customerAddress, el.receiverName, el.taxRate, el.downPayment, el.previousBalance,
-  ];
-
-  el.previousBalance = $('#previousBalance');
-  el.displayPreviousBalanceRow = $('#displayPreviousBalanceRow');
-  el.displayPreviousBalance = $('#displayPreviousBalance');
-  el.displayTotalLabel = $('#displayTotalLabel');
 
   // Customer Debts Ledger elements
   el.openDebtsBtn = $('#openDebtsBtn');
@@ -141,6 +134,12 @@ function cacheDom() {
   el.searchDebtsInput = $('#searchDebtsInput');
   el.totalDebtsAmount = $('#totalDebtsAmount');
   el.debtsListContainer = $('#debtsListContainer');
+
+  el.formFields = [
+    el.companyName, el.companyAddress, el.companyPhone, el.companyEmail,
+    el.invoiceNumber, el.invoiceDate,
+    el.customerName, el.customerAddress, el.receiverName, el.taxRate, el.downPayment, el.previousBalance,
+  ].filter(Boolean);
 
   el.errorFields = {
     companyName: $('#companyNameError'),
@@ -1276,6 +1275,7 @@ function renderDebtsList(filterText = '') {
 function init() {
   cacheDom();
   initTheme();
+  loadCustomerDebts();
 
   const saved = localStorage.getItem('invoiceData');
   if (saved) {
@@ -1299,24 +1299,88 @@ function init() {
   attachItemEvents();
   calcAll();
 
-  // ── Down payment custom input handling ──
-  el.downPayment.addEventListener('keydown', onItemKeydown);
-  el.downPayment.addEventListener('focusout', onItemBlur);
+  // ── Down payment & Previous balance custom input handling ──
+  if (el.downPayment) {
+    el.downPayment.addEventListener('keydown', onItemKeydown);
+    el.downPayment.addEventListener('focusout', onItemBlur);
+  }
+  if (el.previousBalance) {
+    el.previousBalance.addEventListener('keydown', onItemKeydown);
+    el.previousBalance.addEventListener('focusout', onItemBlur);
+  }
 
   // ── Form input binding ──
   el.formFields.forEach(field => {
-    field.addEventListener('input', calcAll);
+    if (field) field.addEventListener('input', calcAll);
   });
 
   // ── Add item ──
-  el.addItemBtn.addEventListener('click', addItem);
+  if (el.addItemBtn) {
+    el.addItemBtn.addEventListener('click', addItem);
+  }
 
   // ── Action buttons ──
-  el.saveBtn.addEventListener('click', saveToStorage);
-  el.loadBtn.addEventListener('click', loadFromStorage);
-  el.clearBtn.addEventListener('click', clearInvoice);
-  el.printBtn.addEventListener('click', printInvoice);
-  el.exportBtn.addEventListener('click', exportPDF);
+  if (el.saveBtn) el.saveBtn.addEventListener('click', saveToStorage);
+  if (el.loadBtn) el.loadBtn.addEventListener('click', loadFromStorage);
+  if (el.clearBtn) el.clearBtn.addEventListener('click', clearInvoice);
+  if (el.printBtn) el.printBtn.addEventListener('click', printInvoice);
+  if (el.exportBtn) el.exportBtn.addEventListener('click', exportPDF);
+
+  // ── Customer Name debt detection ──
+  if (el.customerName) {
+    el.customerName.addEventListener('input', checkCustomerDebt);
+    el.customerName.addEventListener('change', checkCustomerDebt);
+  }
+  if (el.applyDebtBtn) {
+    el.applyDebtBtn.addEventListener('click', applyDetectedDebt);
+  }
+  if (el.dismissDebtAlertBtn) {
+    el.dismissDebtAlertBtn.addEventListener('click', dismissDebtAlert);
+  }
+
+  // ── Customer Debts Modal wiring ──
+  if (el.openDebtsBtn) {
+    el.openDebtsBtn.addEventListener('click', openDebtsModal);
+  }
+  if (el.manageDebtsInlineBtn) {
+    el.manageDebtsInlineBtn.addEventListener('click', openDebtsModal);
+  }
+  if (el.closeDebtsModalBtn) {
+    el.closeDebtsModalBtn.addEventListener('click', closeDebtsModal);
+  }
+  if (el.debtsModal) {
+    el.debtsModal.addEventListener('click', (e) => {
+      if (e.target === el.debtsModal) closeDebtsModal();
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && el.debtsModal && el.debtsModal.style.display === 'flex') {
+      closeDebtsModal();
+    }
+  });
+
+  if (el.debtForm) {
+    el.debtForm.addEventListener('submit', handleDebtFormSubmit);
+  }
+  if (el.cancelDebtEditBtn) {
+    el.cancelDebtEditBtn.addEventListener('click', resetDebtForm);
+  }
+  if (el.searchDebtsInput) {
+    el.searchDebtsInput.addEventListener('input', (e) => renderDebtsList(e.target.value));
+  }
+  if (el.debtsListContainer) {
+    el.debtsListContainer.addEventListener('click', (e) => {
+      const createBtn = e.target.closest('.btn-create-inv-for-debt');
+      const payBtn = e.target.closest('.btn-pay-debt');
+      const editBtn = e.target.closest('.btn-edit-debt');
+      const deleteBtn = e.target.closest('.btn-delete-debt');
+
+      if (createBtn) createInvoiceForCustomer(createBtn.dataset.id);
+      else if (payBtn) recordDebtPayment(payBtn.dataset.id);
+      else if (editBtn) startEditDebt(editBtn.dataset.id);
+      else if (deleteBtn) deleteDebt(deleteBtn.dataset.id);
+    });
+  }
 
   // ── Navigation & responsive buttons ──
   if (el.tabEdit) {
